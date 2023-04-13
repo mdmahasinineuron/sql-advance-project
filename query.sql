@@ -87,19 +87,18 @@ LIMIT 10
 
 
 /*8) We want to know best genre for each country*/
-	genre which make the most sell is to be called best genre
-	WITH making_table AS(
-					SELECT invoice.billing_country,genre.name AS genre_name, SUM(invoice.total) AS country_wise_total from invoice
-					JOIN invoice_line
-					ON invoice.invoice_id = invoice_line.invoice_id
-					JOIN track
-					ON invoice_line.track_id = track.track_id
-					JOIN genre
-					ON track.genre_id = genre.genre_id
-					GROUP BY 1, 2
-					ORDER BY 1 )
+WITH popular_genre AS(	
+	SELECT invoice.billing_country, genre.name, genre.genre_id,
+	ROW_NUMBER() OVER(PARTITION BY invoice.billing_country ORDER BY SUM(invoice_line.unit_price*invoice_line.quantity) DESC) as ranking
+	FROM invoice
+	JOIN invoice_line
+	ON invoice.invoice_id = invoice_line.invoice_id
+	JOIN track
+	ON invoice_line.track_id = track.track_id
+	JOIN genre
+	ON track.genre_id = genre.genre_id
+	GROUP BY 1,2,3)
 
-SELECT billing_country, genre_name, country_wise_total FROM making_table
-WHERE country_wise_total IN (SELECT MAX(country_wise_total) FROM making_table
-							GROUP BY billing_country)
-ORDER BY 1
+SELECT popular_genre.billing_country, popular_genre.name FROM popular_genre
+WHERE ranking = 1
+
